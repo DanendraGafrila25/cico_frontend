@@ -277,6 +277,15 @@ function Sidebar({ isOpen }) {
           <span className="text-lg">📈</span>
           {isOpen && <span className="font-medium group-hover:text-blue-300">Laporan Kehadiran</span>}
         </a>
+
+        <a 
+          href="/admin/manage-admins" 
+          className={`flex items-center ${isOpen ? 'space-x-3 p-3' : 'justify-center p-3'} rounded-xl hover:bg-gray-700 transition-all duration-200 group`}
+          title={!isOpen ? 'Kelola Admin' : ''}
+        >
+          <span className="text-lg">👨‍💼</span>
+          {isOpen && <span className="font-medium group-hover:text-blue-300">Kelola Admin</span>}
+        </a>
         
         <a 
           href="/admin/settings" 
