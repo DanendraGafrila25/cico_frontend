@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import MahasiswaLayout from '@/components/MahasiswaLayout';
@@ -14,7 +15,13 @@ export default function MahasiswaHomePage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkInNotes, setCheckInNotes] = useState('');
   const [checkOutNotes, setCheckOutNotes] = useState('');
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Refs for textarea to handle input properly
+  const checkInNotesRef = useRef(null);
+  const checkOutNotesRef = useRef(null);
   
   const router = useRouter();
 
@@ -114,6 +121,11 @@ export default function MahasiswaHomePage() {
       if (response.data.statusCode === 200) {
         toast.success('Check-in berhasil!');
         setCheckInNotes('');
+        setShowCheckInModal(false);
+        // Reset textarea value
+        if (checkInNotesRef.current) {
+          checkInNotesRef.current.value = '';
+        }
         // Refresh attendance status
         checkTodayAttendance();
       }
@@ -137,6 +149,11 @@ export default function MahasiswaHomePage() {
       if (response.data.statusCode === 200) {
         toast.success('Check-out berhasil!');
         setCheckOutNotes('');
+        setShowCheckOutModal(false);
+        // Reset textarea value
+        if (checkOutNotesRef.current) {
+          checkOutNotesRef.current.value = '';
+        }
         // Refresh attendance status
         checkTodayAttendance();
       }
@@ -208,16 +225,148 @@ export default function MahasiswaHomePage() {
     );
   };
 
-  // Event handlers for textarea input
+  // Event handlers with uncontrolled component approach to prevent input reversal
   const handleCheckInNotesChange = useCallback((e) => {
     const value = e.target.value;
     setCheckInNotes(value);
+    // Also update the ref value to ensure consistency
+    if (checkInNotesRef.current) {
+      checkInNotesRef.current.value = value;
+    }
   }, []);
 
   const handleCheckOutNotesChange = useCallback((e) => {
     const value = e.target.value;
     setCheckOutNotes(value);
+    // Also update the ref value to ensure consistency
+    if (checkOutNotesRef.current) {
+      checkOutNotesRef.current.value = value;
+    }
   }, []);
+
+  const handleCloseCheckInModal = useCallback(() => {
+    setShowCheckInModal(false);
+    setCheckInNotes('');
+    // Reset textarea value
+    if (checkInNotesRef.current) {
+      checkInNotesRef.current.value = '';
+    }
+  }, []);
+
+  const handleCloseCheckOutModal = useCallback(() => {
+    setShowCheckOutModal(false);
+    setCheckOutNotes('');
+    // Reset textarea value
+    if (checkOutNotesRef.current) {
+      checkOutNotesRef.current.value = '';
+    }
+  }, []);
+
+  // Modal Component for Check-in
+  const CheckInModal = () => {
+    if (!showCheckInModal) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
+          <h3 className="text-2xl font-bold text-gray-800 mb-6">📍 Check-in Hari Ini</h3>
+          <p className="text-gray-700 mb-6 text-lg">
+            Silakan masukkan catatan untuk check-in hari ini (opsional):
+          </p>
+          
+          <textarea
+            ref={checkInNotesRef}
+            defaultValue={checkInNotes}
+            onChange={handleCheckInNotesChange}
+            placeholder="Contoh: Hari ini saya akan mengerjakan tugas project web development dan melakukan pembelajaran tentang React.js..."
+            className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 mb-8 text-gray-800 text-base leading-relaxed resize-none"
+            rows="6"
+            autoFocus
+            style={{ 
+              minHeight: '120px',
+              fontSize: '16px',
+              lineHeight: '1.5'
+            }}
+            spellCheck="false"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            dir="ltr"
+            key={`checkin-${showCheckInModal}`}
+          />
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={handleCloseCheckInModal}
+              className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors text-lg"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              className="flex-1 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 text-lg"
+            >
+              {checkingIn ? 'Memproses...' : 'Check-in Sekarang'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Modal Component for Check-out
+  const CheckOutModal = () => {
+    if (!showCheckOutModal) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
+          <h3 className="text-2xl font-bold text-gray-800 mb-6">🚪 Check-out Hari Ini</h3>
+          <p className="text-gray-700 mb-6 text-lg">
+            Silakan masukkan catatan untuk check-out hari ini (opsional):
+          </p>
+          
+          <textarea
+            ref={checkOutNotesRef}
+            defaultValue={checkOutNotes}
+            onChange={handleCheckOutNotesChange}
+            placeholder="Contoh: Hari ini saya telah menyelesaikan tugas project web development, mempelajari konsep React hooks, dan melakukan testing pada aplikasi..."
+            className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-500 mb-8 text-gray-800 text-base leading-relaxed resize-none"
+            rows="6"
+            autoFocus
+            style={{ 
+              minHeight: '120px',
+              fontSize: '16px',
+              lineHeight: '1.5'
+            }}
+            spellCheck="false"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            dir="ltr"
+            key={`checkout-${showCheckOutModal}`}
+          />
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={handleCloseCheckOutModal}
+              className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors text-lg"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleCheckOut}
+              disabled={checkingOut}
+              className="flex-1 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 text-lg"
+            >
+              {checkingOut ? 'Memproses...' : 'Check-out Sekarang'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -235,6 +384,8 @@ export default function MahasiswaHomePage() {
   return (
     <MahasiswaLayout>
       <Toaster position="top-right" />
+      <CheckInModal />
+      <CheckOutModal />
       
       {/* Header Section */}
       <div className="mb-8">
@@ -360,65 +511,39 @@ export default function MahasiswaHomePage() {
                 </div>
               </div>
             ) : attendanceStatus.checkinTime && !attendanceStatus.checkoutTime ? (
-              // Only check-in completed, show check-out input
-              <div>
-                <div className="text-center mb-6">
-                  <div className="text-6xl mb-4">⏰</div>
-                  <p className="text-xl text-blue-700 font-semibold mb-2">Sudah Check-in</p>
-                  <p className="text-gray-600 mb-6">Check-in pada: {formatTime(attendanceStatus.checkinTime)}</p>
-                </div>
+              // Only check-in completed, show check-out button
+              <div className="text-center">
+                <div className="text-6xl mb-4">⏰</div>
+                <p className="text-xl text-blue-700 font-semibold mb-2">Sudah Check-in</p>
+                <p className="text-gray-600 mb-6">Check-in pada: {formatTime(attendanceStatus.checkinTime)}</p>
                 
-                <div className="max-w-md mx-auto">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catatan Check-out (opsional):
-                  </label>
-                  <textarea
-                    value={checkOutNotes}
-                    onChange={handleCheckOutNotesChange}
-                    placeholder="Contoh: Hari ini saya telah menyelesaikan tugas project web development..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 text-gray-800 resize-none"
-                    rows="3"
-                  />
-                  
-                  <button
-                    onClick={handleCheckOut}
-                    disabled={checkingOut}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
-                  >
-                    {checkingOut ? 'Memproses...' : '🚪 Check-out Sekarang'}
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowCheckOutModal(true)}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">🚪</span>
+                    <span>Check-out Sekarang</span>
+                  </div>
+                </button>
               </div>
             ) : null
           ) : (
-            // No attendance record, show check-in input
-            <div>
-              <div className="text-center mb-6">
-                <div className="text-6xl mb-4">📍</div>
-                <p className="text-xl text-gray-800 font-semibold mb-2">Belum Check-in Hari Ini</p>
-                <p className="text-gray-600 mb-6">Silakan lakukan check-in untuk memulai hari kerja Anda</p>
-              </div>
+            // No attendance record, show check-in button
+            <div className="text-center">
+              <div className="text-6xl mb-4">📍</div>
+              <p className="text-xl text-gray-800 font-semibold mb-2">Belum Check-in Hari Ini</p>
+              <p className="text-gray-600 mb-6">Silakan lakukan check-in untuk memulai hari kerja Anda</p>
               
-              <div className="max-w-md mx-auto">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Catatan Check-in (opsional):
-                </label>
-                <textarea
-                  value={checkInNotes}
-                  onChange={handleCheckInNotesChange}
-                  placeholder="Contoh: Hari ini saya akan mengerjakan tugas project web development..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 mb-4 text-gray-800 resize-none"
-                  rows="3"
-                />
-                
-                <button
-                  onClick={handleCheckIn}
-                  disabled={checkingIn}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50"
-                >
-                  {checkingIn ? 'Memproses...' : '📍 Check-in Sekarang'}
-                </button>
-              </div>
+              <button
+                onClick={() => setShowCheckInModal(true)}
+                className="px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold text-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 hover:scale-105 active:scale-95"
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">📍</span>
+                  <span>Check-in Sekarang</span>
+                </div>
+              </button>
             </div>
           )}
         </div>
